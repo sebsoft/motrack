@@ -197,10 +197,10 @@ if __name__ == "__main__":
     
     
     
-    cam = "pilibcam"
-    if cam is not None:
-        logging.info("Start Stream Thread: %s", cam)
-        if cam == "pilibcam":
+    mycam = "pilibcam"
+    if mycam is not None:
+        logging.info("Start Stream Thread: %s", mycam)
+        if mycam == "pilibcam":
             if not os.path.exists('streampilibcam.py'):
                 logging.error("streampilibcam.py File Not Found.")
                 sys.exit(1)
@@ -229,7 +229,7 @@ if __name__ == "__main__":
         TRACK_INTERVAL_LEN = int(TRACK_TRIG_LEN / 2.0) # Max allowed px distance from previous track point
         logging.info("Auto Calculated TRACK_TRIG_LEN=%i and TRACK_INTERVAL_LEN=%i",
                       TRACK_TRIG_LEN, TRACK_INTERVAL_LEN)
-    logging.info("Start %s Stream Thread" % CAMERA.upper())
+    logging.info("Start %s Stream Thread" % mycam.upper())
     logging.info("Start Motion Tracking Loop. Ctrl-c Quits ...")
     logging.info("--------------------------------------------")
     tracking = True
