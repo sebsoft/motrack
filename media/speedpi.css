@@ -1,0 +1,72 @@
+* {box-sizing: border-box;}
+
+body {
+  padding: 20px;
+}
+
+#menu {
+  position: absolute;
+  top: 50px;
+  bottom: 20px;
+  left: 80%;
+  right: 20px;
+  overflow: scroll;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #ccc;
+  /*border-radius:10px; */
+  font-size: 12px;
+  font-family: Arial, sans-serif;
+  /* This is where the magic happens */
+  -webkit-overflow-scrolling: touch;
+}
+
+li {
+  padding: 5px 20px;
+  border-bottom: 1px solid #ccc;
+
+}
+
+li:nth-child(odd) {
+    background: #ccc;
+}
+
+
+#refreshbutton {
+  position: absolute;
+  top: 10px;
+  bottom: 20px;
+  left: 80%;
+  right: 20px;
+  font-size: 16px;
+  font-family: Arial, sans-serif;
+  
+}
+
+#header {
+    position: absolute;
+    top: 10px;
+    left: 20px;
+    right: 22%;
+    font-size: 12px;
+    font-family: Arial, sans-serif;
+  }
+  
+
+#container {
+    position: absolute;
+    top: 50px;
+    bottom: 20px;
+    left: 20px;
+    width: 80%;
+ }
+ 
+ #container img {
+    border:3px solid #ccc;
+    /*border-radius:10px;*/
+    width: 95%;
+
+ }
+
+ 
+
