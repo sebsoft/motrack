@@ -1,4 +1,4 @@
-# MoTrack - Demo code for testing picamera2 libcam with legacy
+# MoTrack - Demo code for testing picamera2 libcam 
 ### Uses python3 and opencv and Tracks largest moving object in camera view,  tensorflow lite is used for object detection and vehicle length and speed calculation.
 
 
