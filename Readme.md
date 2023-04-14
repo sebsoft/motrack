@@ -7,3 +7,8 @@
 based on the work of Claude Pageau   https://github.com/pageauc/MoTrack-Picam2-Demo
 
 Configured and tested for rpi 3 using v3 camera.  Some specific constants in the code to filter out objects which are not on the road. Currently only R2L movements are recordes and processed.
+
+Use python motrack.py to start the object tracking
+Use python webservernf to start the frameless browserinterace using the css to view images of tracked objects
+Use python webserver to start a frame based browserinterace to view images of tracked objects
+
