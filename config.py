@@ -1,53 +1,42 @@
-# -- User Configuration Settings for motrack.py -------
+# -- motrack.py User Configuration Settings -------
 
 #======================================
 # Logging Settings
 #======================================
 LOGGING_ON = True     # Show individual track xy points
-SHOW_SETTINGS = True   # Display settings on launch
-loggingToFile = True
-logFilePath = './media/logfile.txt'
+SHOW_SETTINGS_ON = False  # Display settings on launch
+SHOW_CAM_SETTINGS_ON = True
+
+#======================================
+# Image Settings
+# Camera Settings See configcam.py
+#======================================
+IM_PREFIX = "track-"   # Prefix for image files
+IM_DIR = "./media/images"  # directory for saving images (auto created)
+IM_BIGGER = 1       # Resize the stream image before saving
+
+#======================================
+# Motion Tracking Settings
+#======================================
+TRACK_MIN_AREA = 20000    # Minimum area of contours to track
+TRACK_TRIG_AUTO = False  # True Auto Calculates TRIG_LEN and INTERVAL_LEN.
+TRACK_TRIG_LEN = 300    # Number of pixels to end tracking
+TRACK_INTERVAL_LEN = 200 # Max allowed px distance from previous
+TRACK_TIMEOUT_SEC = 2.0 # If no motion for timeout seconds end tracking
+TRACK_DELAY_SEC = 1.0   # seconds to delay after successful track.  Avoids duplicates
+TRACK_HIST_ON = False    # Show track History overlayed on last image
 
 
 #======================================
 # Camera detection area
 #======================================
-x_left = 50         
-x_right = 700         
+x_left = 400         
+x_right = 1200         
 y_upper = 200         
-y_lower = 400
+y_lower = 800
 
 
-PIXELS_METER_R2L = 0.0156
-PIXELS_METER_L2R = 0.0156
 
-#======================================
-# Camera and Image Settings
-#======================================
-mycam = "pilibcam" # valid values usbcam, rtspcam, pilibcam, pilegcam
- 
-USBCAM_SRC = 0
-RTSPCAM_SRC = "rtsp://user:passwd@192.168.1.200:554/12"  # Set per IP Cam Docs and config
-
-# NOTE: To Scan for Pi Lib or legacy CAM Set WEBCAM_ON and IPCAM_ON to False
-
-IM_PREFIX = ""   # Prefix for image files
-IM_DIR = "./media/images"  # directory for saving images (auto created)
-IM_SIZE = (1000, 480)   # Image resolution (width, height) pixels
-IM_VFLIP = True        # True enables flipping image vertically
-IM_HFLIP = True        # True enables flipping image horizonally.
-IM_FRAMERATE = 100      # Legacy Picamera Framerate
-
-#======================================
-# Motion Tracking Settings
-#======================================
-TRACK_MIN_AREA = 10000    # Minimum area of contours to track
-TRACK_TRIG_AUTO = False  # True Auto Calculates TRIG_LEN and INTERVAL_LEN.
-TRACK_TRIG_LEN = 300    # Number of pixels to end tracking
-TRACK_INTERVAL_LEN = 200 # Max allowed px distance from previous
-TRACK_TIMEOUT_SEC = 2.0 # If no motion for timeout seconds end tracking
-TRACK_DELAY_SEC = 0   # seconds to delay after successful track.  Avoids duplicates
-TRACK_HIST_ON = True    # Show track History overlay on last image
 
 #======================================
 # Color data for OpenCV lines and text
@@ -62,12 +51,12 @@ RED = (0, 0, 255)
 # opencv settings. (Should Not need to be changed)
 #======================================
 GUI_ON = False      # Display image Stream on Desktop GUI
-CIRCLE_ON = True
+CIRCLE_ON = False
 CIRCLE_SIZE = 5
 LINE_COLOR = RED
 LINE_THICKNESS = 2
 
-THRESHOLD_SENSITIVITY = 20 # black pixels below value, white above to enhance contours
+THRESHOLD_SENSITIVITY = 25 # black pixels below value, white above to enhance contours
 BLUR_SIZE = 10    # Enlarge white area around contour pixels to aid detection
 
 #======================================

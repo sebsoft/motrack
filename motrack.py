@@ -1,12 +1,20 @@
 #!/usr/bin/python3
 from __future__ import print_function
-PROG_VERSION = "1.51"
+'''
+Note to self
+Look at adding image crop area of interest, similar to speed camera.
+This will reduce open cv processing on larger images and eliminate
+non relavent motion outside the area of interest.
+'''
+PROG_VERSION = "1.65"
 
 import logging
 # Setup Logging
+logging.basicConfig(level=logging.DEBUG,
+                    format="%(asctime)s %(levelname)-8s %(message)s",
+                    datefmt="%Y-%m-%d %H:%M:%S")
+logging.info("Loading Python Libraries ...")
 
-
-print("Loading Python Libraries ...")
 import os
 import sys
 import time
@@ -14,56 +22,26 @@ import datetime
 import math
 import cv2
 import subprocess
-import logging
+from strmcam import strmcam
+from configcam import CAMERA
 from timeit import default_timer as timer
 import user_code_speed
 
-CONFIG_FILENAME = "config.py"  # Settings variables file to impor
 
-
+CONFIG_FILENAME = "config.py"  # Settings variables file to import
 if os.path.exists(CONFIG_FILENAME):
     # Read Configuration variables from config.py file
     try:
-        #logging.info("Import Settings from %s", CONFIG_FILENAME)
+        logging.info("Import Variable Settings from %s", CONFIG_FILENAME)
         from config import *
     except ImportError:
-        #logging.error("Problem Importing configuration variables from %s" %
-        #              CONFIG_FILENAME)
+        logging.error("Import Failed, from config import * for %s" % CONFIG_FILENAME)
         sys.exit(1)
 else:
-    #logging.error("Configuration File Not Found %s" % CONFIG_FILENAME)
+    logging.error("Configuration File Not Found %s" % CONFIG_FILENAME)
     sys.exit(1)
 
-
-if loggingToFile:
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="%(asctime)s %(levelname)-8s %(funcName)-10s %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-            filename=logFilePath,
-            filemode="a",
-            )
-    
-
-
-
-
-
 PROG_NAME = os.path.basename(__file__)
-
-# ------------------------------------------------------------------------------
-def validate_cam(cam, camlist):
-    ''' Make sure camera value is correct (case insensitive)
-    '''
-    camlow = cam.lower()
-    if not camlow in camlist:
-        logging.error('%s Not a Valid Camera Value', cam)
-        logging.info('Valid Values are %s', ' '.join(camlist))
-        logging.info('Edit config.py CAMERA variable.')
-        sys.exit(1)
-    else:
-        logging.info('Connecting to camera %s', camlow)
-    return camlow
 
 
 # ------------------------------------------------------------------------------
@@ -72,10 +50,11 @@ def show_settings(filename):
     Display program configuration variable settings
     read config file and print each decoded line
     '''
+    print("============= %s Settings ===================" % filename)
     with open(filename, 'rb') as f:
         for line in f:
             print(line.decode().strip())
-    print("")
+    print("=====================================================")
 
 
 # ------------------------------------------------------------------------------
@@ -147,11 +126,23 @@ def get_motion_track_point(grayimage1, grayimage2):
         movement_size = w * h
         if movement_size <= TRACK_MIN_AREA:
             return None, movement_size
-        movement_center = (int(x + w / 2) + x_left, int(y + h / 2) + y_upper)
+        movement_center = (int(x + w / 2), int(y + h / 2))
         movement_size = w * h
     return movement_center, movement_size
 
 
+# ------------------------------------------------------------------------------
+def track_motion_distance(xy1, xy2):
+    '''
+    Return the triangulated distance between two tracking positions
+    '''
+    x1, y1 = xy1
+    x2, y2 = xy2
+    trackLen = int(abs(math.hypot(x2 - x1, y2 - y1)))
+    return trackLen
+
+
+# ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 def track_motion_direction(xy1, xy2):
     '''
@@ -172,65 +163,42 @@ def track_motion_direction(xy1, xy2):
     return trackdirection
 
 
-# ------------------------------------------------------------------------------
-def track_motion_distance(xy1, xy2):
-    '''
-    Return the triangulated distance between two tracking locations
-    '''
-    x1, y1 = xy1
-    x2, y2 = xy2
-    trackLen = int(abs(math.hypot(x2 - x1, y2 - y1)))
-    return trackLen
 
-
-# ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    if SHOW_SETTINGS:
+
+    if SHOW_SETTINGS_ON:
         show_settings(CONFIG_FILENAME)
+    if SHOW_CAM_SETTINGS_ON:
+        show_settings('configcam.py')
 
     if not os.path.exists(IM_DIR):  # Check if image directory exists
         os.makedirs(IM_DIR)  # Create directory if Not Found
 
-    
-
     logging.info("%s ver %s written by Claude Pageau", PROG_NAME, PROG_VERSION)
-    
-    
-    
-    mycam = "pilibcam"
-    if mycam is not None:
-        logging.info("Start Stream Thread: %s", mycam)
-        if mycam == "pilibcam":
-            if not os.path.exists('streampilibcam.py'):
-                logging.error("streampilibcam.py File Not Found.")
-                sys.exit(1)
-            try:
-                from streampilibcam import PiLibCamStream
-            except ImportError:
-                logging.error("Failed Import of streampilibcam.py")
-                sys.exit(1)                    
-            vs = PiLibCamStream(size=IM_SIZE,
-                                im_vflip=IM_VFLIP,
-                                im_hflip=IM_HFLIP).start()
+    vs = strmcam()  # start video stream thread
 
-        logging.info("Wait ...")
-        time.sleep(5)  # Allow Camera to warm up        
-    # initialize first gray image
-    
     start_track = True
     track_hist = []
-    image1_full = vs.read()
+    image1_full = vs.read()  # get first image frame
     image1 = image1_full[y_upper:y_lower, x_left:x_right]
-    grayimage1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-    im_height, im_width, _ = image1_full.shape
+
+    try:
+        grayimage1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+    except cv2.error:
+        logging.error('Problem Connecting to %s. Review Log Messages and Correct', CAMERA.upper())
+        sys.exit(1)
+    im_height, im_width, _ = image1.shape
     if TRACK_TRIG_AUTO:
         # Auto calculate variables below
         TRACK_TRIG_LEN = int(im_width / 8)  # auto calc track len.
-        TRACK_INTERVAL_LEN = int(TRACK_TRIG_LEN / 2.0) # Max allowed px distance from previous track point
+        # Max allowed px distance from previous track point
+        TRACK_INTERVAL_LEN = int(TRACK_TRIG_LEN / 2.0)
         logging.info("Auto Calculated TRACK_TRIG_LEN=%i and TRACK_INTERVAL_LEN=%i",
                       TRACK_TRIG_LEN, TRACK_INTERVAL_LEN)
-    logging.info("Start %s Stream Thread" % mycam.upper())
     logging.info("Start Motion Tracking Loop. Ctrl-c Quits ...")
+    if GUI_ON:
+        logging.info('GUI_ON = True - To Quit OpenCV display windows.')
+        logging.info('Press Q key when cursor is inside OpenCV window')
     logging.info("--------------------------------------------")
     tracking = True
     try:
@@ -240,6 +208,8 @@ if __name__ == "__main__":
             try:
                 grayimage2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
             except:
+                # If there is a problem with image eg cam, network, Etc then try again
+                # logging.warn('Problem with converting image2 to grayscale. Retrying')
                 continue
 
             motion_xy, motion_size = get_motion_track_point(grayimage1, grayimage2)
@@ -252,18 +222,18 @@ if __name__ == "__main__":
             # Check if timer expired and if so restart track and try again
             if not start_track and timer_end(track_timer_start, TRACK_TIMEOUT_SEC):
                 if LOGGING_ON:
-                    logging.info("TIMER: GT %i TRACK_TIMEOUT_SEC",
+                    logging.info("  IIMER: GT %i TRACK_TIMEOUT_SEC",
                                  TRACK_TIMEOUT_SEC)
                 start_track = True
                 continue
             # If this is first track motion initialize tracking variables
             if motion_xy and start_track:
-                
                 track_start  = timer()
                 track_timer_start = datetime.datetime.now()
-                image1_full = image2_full
+                startimage  = image2_full
                 filename1  = get_image_name(IM_DIR,"")
                 
+
                 mpoint_start = motion_xy
                 prev_mpoint = motion_xy
                 max_radius = TRACK_INTERVAL_LEN
@@ -275,15 +245,12 @@ if __name__ == "__main__":
                 start_track = False
             # Start tracking motion
             else:
-                
                 mpoint2 = motion_xy
                 track_length = track_motion_distance(mpoint_start, mpoint2)
-                
-               
                 if TRACK_HIST_ON:
                     track_hist.append(mpoint2)  # Append current mpoint to track history
                 if GUI_ON and CIRCLE_ON:
-                    cv2.circle(image2_full,
+                    cv2.circle(image2,
                                mpoint2,
                                CIRCLE_SIZE,
                                LINE_COLOR,
@@ -294,62 +261,39 @@ if __name__ == "__main__":
                     # ignore out of range points and reset start point
                     mpoint_start = mpoint2
                     if LOGGING_ON:
-                        logging.info("(%i, %i) Track Reset: Radius %i Exceeds %i",
-                        mpoint2[0], mpoint2[1], track_length, max_radius)
-                    start_track = True
+                        logging.info("  RESET: (%i, %i) %i sqpx Radius %i Exceeds %i",
+                        mpoint2[0], mpoint2[1], motion_size, track_length, max_radius)
                     continue
                 if track_length > TRACK_TRIG_LEN:
                     # This was a valid track
+                    if LOGGING_ON:
+                        logging.info("END  : (%i, %i) %i sqpx Len %i GT %i TRACK_TRIG_LEN px",
+                                     mpoint2[0], mpoint2[1], motion_size, track_length, TRACK_TRIG_LEN)
+
                     track_direction = track_motion_direction(mpoint_start, mpoint2)
+
                     track_stop  = timer()
                     tracktime = (track_stop - track_start)*1000
 
-                    speed = round(((track_length * PIXELS_METER_R2L ) / (tracktime/1000)) * 3.6 , 0) 
-                    if LOGGING_ON:
-                        logging.info("Track End: (%i, %i) Length %i GT %i TRACK_TRIG_LEN px in %i ms %s speed %i",
-                                     mpoint2[0], mpoint2[1], track_length, TRACK_TRIG_LEN,tracktime, track_direction, speed)
-                    filename2 = get_image_name(IM_DIR, "")
-                    
-                    
-                    # Resize image before saving ..
-                    if CIRCLE_ON:  # Put Circle on last motion xy before saving image
-                        if TRACK_HIST_ON:
-                            for point in track_hist:
-                                cv2.circle(image2_full,
-                                           point,
-                                           CIRCLE_SIZE,
-                                           LINE_COLOR,
-                                           LINE_THICKNESS)
-                        else:
-                            cv2.circle(image2_full,
-                                       mpoint2,
-                                       CIRCLE_SIZE,
-                                       LINE_COLOR,
-                                       LINE_THICKNESS)
-                    
-                    #im_resized = cv2.resize(image2_full, (int(im_width * IM_BIGGER),
-                    #                             int(im_height * IM_BIGGER)))
-                    
                     if track_direction == "R2L":
-                        logging.info("SAVE R2L!: %s", filename1)
-                        logging.info("SAVE R2L!: %s", filename2)
-                        cv2.imwrite(filename1, image1_full)
+                        #save first image
+                        filename1  = get_image_name(IM_DIR,"Start_")
+                        cv2.imwrite(filename1, startimage)
+                        logging.info("SAVE : %s", filename1)
+
+                        #save last image
+                        filename2 = get_image_name(IM_DIR, "Stop_")
                         cv2.imwrite(filename2, image2_full)
-                        user_code_speed.userMotionCode(filename1,filename2,tracktime,speed
-                                        )
-                        
+                        logging.info("SAVE : %s", filename2)
                     
+                        user_code_speed.userMotionCode(filename1,filename2,tracktime)
+                        
                     time.sleep(TRACK_DELAY_SEC)  # Delay before starting another track
                     start_track = True
-                #else:
-                    #if LOGGING_ON:
-                        #logging.info("(%i, %i)", mpoint2[0], mpoint2[1])
-
-            if not start_track and timer_end(track_timer_start, TRACK_TIMEOUT_SEC):
-                if LOGGING_ON:
-                    logging.info("Track Timeout: GT %i TRACK_TIMEOUT_SEC",
-                                 TRACK_TIMEOUT_SEC)
-                start_track = True
+                else:
+                    if LOGGING_ON:
+                        logging.info("  TRACK: (%i, %i) %i sqpx Len %i px",
+                                      mpoint2[0], mpoint2[1], motion_size, track_length)
 
             if GUI_ON:
                 cv2.imshow("MoTrack (q in Window Quits)", image2)
@@ -361,7 +305,7 @@ if __name__ == "__main__":
         print("")
         logging.info("User Pressed Keyboard ctrl-c")
         logging.info("Exiting %s ver %s", PROG_NAME, PROG_VERSION)
-        logging.info("Stop Stream Thread: %s", cam)
-        logging.info("Wait ...")
         vs.stop()
+        logging.info("Stopped Camera Stream Thread %s", CAMERA.upper())
+        logging.info("Bye ...")
         sys.exit(0)
